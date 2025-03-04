@@ -185,6 +185,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date(),
       updatedAt: new Date(),
       version: 1,
+      collectionId: promptData.collectionId === "none" ? undefined : promptData.collectionId
     };
     
     setPrompts(prev => [newPrompt, ...prev]);
@@ -205,6 +206,11 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Update an existing prompt
   const updatePrompt = (id: string, data: Partial<Prompt>) => {
+    // Handle the "none" value for collectionId
+    if (data.collectionId === "none") {
+      data.collectionId = undefined;
+    }
+    
     setPrompts(prev => 
       prev.map(prompt => {
         if (prompt.id === id) {
