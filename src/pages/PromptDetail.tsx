@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { usePrompts } from "@/context/PromptContext";
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -19,7 +21,11 @@ import {
   History,
   Share,
   Folder,
-  Download
+  Download,
+  Variable,
+  TextCursorInput,
+  Check,
+  RefreshCcw
 } from "lucide-react";
 import PromptForm from "@/components/PromptForm";
 import { toast } from "sonner";
@@ -30,6 +36,9 @@ const PromptDetail: React.FC = () => {
   const { prompts, collections, deletePrompt, toggleFavorite } = usePrompts();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [placeholders, setPlaceholders] = useState<string[]>([]);
+  const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
+  const [filledPrompt, setFilledPrompt] = useState("");
   
   // Find the prompt by ID
   const prompt = prompts.find(p => p.id === id);
@@ -40,6 +49,58 @@ const PromptDetail: React.FC = () => {
     return null;
   }
   
+  // Extract placeholders when prompt content changes
+  useEffect(() => {
+    if (prompt?.content) {
+      // RegEx to find all {placeholder} occurrences
+      const regex = /{([^{}]+)}/g;
+      const matches = [...prompt.content.matchAll(regex)];
+      const extractedPlaceholders = matches.map(match => match[1]);
+      
+      // Filter out duplicates
+      const uniquePlaceholders = [...new Set(extractedPlaceholders)];
+      setPlaceholders(uniquePlaceholders);
+      
+      // Initialize placeholder values
+      const initialValues: Record<string, string> = {};
+      uniquePlaceholders.forEach(placeholder => {
+        initialValues[placeholder] = "";
+      });
+      setPlaceholderValues(initialValues);
+      
+      // Initialize filled prompt with original content
+      setFilledPrompt(prompt.content);
+    }
+  }, [prompt?.content]);
+  
+  // Update filled prompt when placeholder values change
+  useEffect(() => {
+    if (prompt?.content && Object.keys(placeholderValues).length > 0) {
+      let filled = prompt.content;
+      Object.entries(placeholderValues).forEach(([key, value]) => {
+        filled = filled.replace(new RegExp(`{${key}}`, 'g'), value || `{${key}}`);
+      });
+      setFilledPrompt(filled);
+    }
+  }, [placeholderValues, prompt?.content]);
+  
+  const handlePlaceholderChange = (placeholder: string, value: string) => {
+    setPlaceholderValues(prev => ({
+      ...prev,
+      [placeholder]: value
+    }));
+  };
+  
+  const handleResetPlaceholders = () => {
+    // Reset all placeholder values to empty strings
+    const resetValues: Record<string, string> = {};
+    placeholders.forEach(placeholder => {
+      resetValues[placeholder] = "";
+    });
+    setPlaceholderValues(resetValues);
+    toast.success("All placeholders reset");
+  };
+  
   const collection = prompt.collectionId
     ? collections.find(c => c.id === prompt.collectionId)
     : null;
@@ -47,6 +108,11 @@ const PromptDetail: React.FC = () => {
   const handleCopy = () => {
     navigator.clipboard.writeText(prompt.content);
     toast.success("Prompt copied to clipboard");
+  };
+  
+  const handleCopyWithPlaceholders = () => {
+    navigator.clipboard.writeText(filledPrompt);
+    toast.success("Filled prompt copied to clipboard");
   };
   
   const handleDelete = () => {
@@ -172,6 +238,9 @@ const PromptDetail: React.FC = () => {
             <Tabs defaultValue="prompt">
               <TabsList>
                 <TabsTrigger value="prompt">Prompt</TabsTrigger>
+                <TabsTrigger value="placeholders" disabled={placeholders.length === 0}>
+                  Placeholders {placeholders.length > 0 && `(${placeholders.length})`}
+                </TabsTrigger>
                 <TabsTrigger value="history" disabled={!prompt.versionHistory?.length}>
                   History ({prompt.versionHistory?.length || 0})
                 </TabsTrigger>
@@ -189,6 +258,70 @@ const PromptDetail: React.FC = () => {
                   <p>Created: {formatDate(prompt.createdAt)}</p>
                   <p>Last Updated: {formatDate(prompt.updatedAt)}</p>
                 </div>
+              </TabsContent>
+              
+              <TabsContent value="placeholders" className="mt-4">
+                {placeholders.length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      {placeholders.map((placeholder) => (
+                        <div key={placeholder} className="space-y-2">
+                          <Label htmlFor={`placeholder-${placeholder}`} className="flex items-center gap-1.5">
+                            <Variable className="h-4 w-4" />
+                            {placeholder}
+                          </Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id={`placeholder-${placeholder}`}
+                              value={placeholderValues[placeholder]}
+                              onChange={(e) => handlePlaceholderChange(placeholder, e.target.value)}
+                              placeholder={`Enter value for ${placeholder}...`}
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <Label className="flex items-center gap-1.5 mb-2">
+                        <TextCursorInput className="h-4 w-4" />
+                        Preview with replaced placeholders
+                      </Label>
+                      <Textarea
+                        value={filledPrompt}
+                        readOnly
+                        className="min-h-[200px] resize-none"
+                      />
+                      
+                      <div className="flex items-center justify-between mt-4">
+                        <Button
+                          variant="outline" 
+                          size="sm"
+                          className="gap-1"
+                          onClick={handleResetPlaceholders}
+                        >
+                          <RefreshCcw className="h-4 w-4" />
+                          Reset Values
+                        </Button>
+                        
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="gap-1"
+                          onClick={handleCopyWithPlaceholders}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copy with Values
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No placeholders found in this prompt. Use {"{placeholder}"} syntax in your prompt content.
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="history" className="mt-4">
