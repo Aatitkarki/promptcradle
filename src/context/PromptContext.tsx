@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Prompt, Tag, Collection, SortOption, ViewMode } from "@/types";
 import { toast } from "sonner";
@@ -374,12 +373,20 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Toggle favorite status
   const toggleFavorite = (id: string) => {
+    // First find the prompt to determine its current favorite status
+    const prompt = prompts.find(p => p.id === id);
+    if (!prompt) return;
+
+    // Toggle the favorite status
+    const newFavoriteStatus = !prompt.isFavorite;
+    
+    // Update the prompt
     setPrompts(prev => 
-      prev.map(prompt => {
-        if (prompt.id === id) {
-          return { ...prompt, isFavorite: !prompt.isFavorite };
+      prev.map(p => {
+        if (p.id === id) {
+          return { ...p, isFavorite: newFavoriteStatus };
         }
-        return prompt;
+        return p;
       })
     );
     
@@ -387,30 +394,36 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const favoritesCollection = collections.find(c => c.name === "Favorites");
     
     if (favoritesCollection) {
-      const prompt = prompts.find(p => p.id === id);
-      
-      if (prompt) {
-        if (!prompt.isFavorite) {
-          // Add to favorites
-          setCollections(prev => 
-            prev.map(collection => 
-              collection.id === favoritesCollection.id
-                ? { ...collection, promptIds: [...collection.promptIds, id] }
-                : collection
-            )
-          );
-        } else {
-          // Remove from favorites
-          setCollections(prev => 
-            prev.map(collection => 
-              collection.id === favoritesCollection.id
-                ? { ...collection, promptIds: collection.promptIds.filter(promptId => promptId !== id) }
-                : collection
-            )
-          );
-        }
+      if (newFavoriteStatus) {
+        // Add to favorites collection
+        setCollections(prev => 
+          prev.map(collection => 
+            collection.id === favoritesCollection.id
+              ? { 
+                  ...collection, 
+                  promptIds: collection.promptIds.includes(id) 
+                    ? collection.promptIds 
+                    : [...collection.promptIds, id] 
+                }
+              : collection
+          )
+        );
+      } else {
+        // Remove from favorites collection
+        setCollections(prev => 
+          prev.map(collection => 
+            collection.id === favoritesCollection.id
+              ? { 
+                  ...collection, 
+                  promptIds: collection.promptIds.filter(promptId => promptId !== id) 
+                }
+              : collection
+          )
+        );
       }
     }
+    
+    toast.success(newFavoriteStatus ? "Added to favorites" : "Removed from favorites");
   };
   
   // Toggle a tag in the selected tags filter
