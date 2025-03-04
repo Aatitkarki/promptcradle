@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -52,8 +51,8 @@ const PromptDetail: React.FC = () => {
   // Extract placeholders when prompt content changes
   useEffect(() => {
     if (prompt?.content) {
-      // RegEx to find all {placeholder} occurrences
-      const regex = /{([^{}]+)}/g;
+      // Updated RegEx to find all {{placeholder}} occurrences
+      const regex = /{{([^{}]+)}}/g;
       const matches = [...prompt.content.matchAll(regex)];
       const extractedPlaceholders = matches.map(match => match[1]);
       
@@ -78,7 +77,8 @@ const PromptDetail: React.FC = () => {
     if (prompt?.content && Object.keys(placeholderValues).length > 0) {
       let filled = prompt.content;
       Object.entries(placeholderValues).forEach(([key, value]) => {
-        filled = filled.replace(new RegExp(`{${key}}`, 'g'), value || `{${key}}`);
+        // Updated to use double curly braces
+        filled = filled.replace(new RegExp(`{{${key}}}`, 'g'), value || `{{${key}}}`);
       });
       setFilledPrompt(filled);
     }
@@ -319,7 +319,7 @@ const PromptDetail: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    No placeholders found in this prompt. Use {"{placeholder}"} syntax in your prompt content.
+                    No placeholders found in this prompt. Use {{"{placeholder}"}} syntax in your prompt content.
                   </div>
                 )}
               </TabsContent>

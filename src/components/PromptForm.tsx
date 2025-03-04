@@ -91,7 +91,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
             required
           />
           <p className="text-xs text-muted-foreground">
-            Use {"{placeholder}"} syntax for dynamic values.
+            Use {{"{placeholder}"}} syntax for dynamic values.
           </p>
         </div>
         
