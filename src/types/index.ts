@@ -26,8 +26,17 @@ export type Prompt = {
     content: string;
     updatedAt: Date;
   }[];
+  isPrivate?: boolean;
+  createdBy?: string;
+  createdByUsername?: string;
 };
 
 export type SortOption = 'newest' | 'oldest' | 'alphabetical' | 'updated';
 
 export type ViewMode = 'grid' | 'list';
+
+export type User = {
+  id: string;
+  username: string;
+  email: string;
+};

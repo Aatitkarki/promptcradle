@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Prompt, Tag, Collection, SortOption, ViewMode } from "@/types";
+import { Prompt, Tag, Collection, SortOption, ViewMode, User } from "@/types";
 import { toast } from "sonner";
+import { useAuth } from "./AuthContext";
 
 type PromptContextType = {
   prompts: Prompt[];
@@ -67,35 +69,38 @@ const initialPrompts: Prompt[] = [
   {
     id: "prompt-1",
     title: "Creative Story Generator",
-    content: "Write a short story about {character} who discovers {magical object} and how it changes their life.",
+    content: "Write a short story about {{character}} who discovers {{magical object}} and how it changes their life.",
     tags: [initialTags[0], initialTags[2]],
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     collectionId: "col-2",
     isFavorite: true,
     version: 1,
+    isPrivate: false,
   },
   {
     id: "prompt-2",
     title: "Business Email Template",
-    content: "Compose a professional email to {recipient} regarding {topic}. The tone should be {tone} and include a clear call to action.",
+    content: "Compose a professional email to {{recipient}} regarding {{topic}}. The tone should be {{tone}} and include a clear call to action.",
     tags: [initialTags[3], initialTags[4]],
     createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
     collectionId: "col-3",
     isFavorite: false,
     version: 1,
+    isPrivate: false,
   },
   {
     id: "prompt-3",
     title: "AI Art Prompt",
-    content: "Generate an image of a {subject} in the style of {artist}, with {mood} lighting and {color} color palette.",
+    content: "Generate an image of a {{subject}} in the style of {{artist}}, with {{mood}} lighting and {{color}} color palette.",
     tags: [initialTags[0], initialTags[2]],
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
     collectionId: "col-2",
     isFavorite: true,
     version: 1,
+    isPrivate: false,
   },
 ];
 
@@ -105,6 +110,7 @@ initialCollections[1].promptIds = initialPrompts.filter(p => p.collectionId === 
 initialCollections[2].promptIds = initialPrompts.filter(p => p.collectionId === "col-3").map(p => p.id);
 
 export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [prompts, setPrompts] = useState<Prompt[]>(() => 
     loadFromLocalStorage('prompts', initialPrompts)
   );
@@ -134,6 +140,11 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const filteredPrompts = React.useMemo(() => {
     return prompts
       .filter((prompt) => {
+        // Filter by privacy: show only public prompts or private prompts owned by the current user
+        if (prompt.isPrivate && (!user || prompt.createdBy !== user.id)) {
+          return false;
+        }
+        
         // Filter by collection if selected
         if (selectedCollection && prompt.collectionId !== selectedCollection) {
           return false;
@@ -174,7 +185,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             return 0;
         }
       });
-  }, [prompts, selectedCollection, selectedTags, searchQuery, sortOption]);
+  }, [prompts, selectedCollection, selectedTags, searchQuery, sortOption, user]);
   
   // Add a new prompt
   const addPrompt = (promptData: Omit<Prompt, "id" | "createdAt" | "updatedAt" | "version">) => {
@@ -184,7 +195,10 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date(),
       updatedAt: new Date(),
       version: 1,
-      collectionId: promptData.collectionId === "none" ? undefined : promptData.collectionId
+      collectionId: promptData.collectionId === "none" ? undefined : promptData.collectionId,
+      isPrivate: promptData.isPrivate || false,
+      createdBy: user?.id,
+      createdByUsername: user?.username
     };
     
     setPrompts(prev => [newPrompt, ...prev]);
@@ -205,6 +219,13 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Update an existing prompt
   const updatePrompt = (id: string, data: Partial<Prompt>) => {
+    // Verify ownership for private prompts
+    const prompt = prompts.find(p => p.id === id);
+    if (prompt?.isPrivate && prompt.createdBy && user?.id !== prompt.createdBy) {
+      toast.error("You don't have permission to edit this prompt");
+      return;
+    }
+    
     // Handle the "none" value for collectionId
     if (data.collectionId === "none") {
       data.collectionId = undefined;
@@ -276,6 +297,15 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Delete a prompt
   const deletePrompt = (id: string) => {
+    // Verify ownership for private prompts
+    const prompt = prompts.find(p => p.id === id);
+    if (!prompt) return;
+    
+    if (prompt.createdBy && user?.id !== prompt.createdBy) {
+      toast.error("You don't have permission to delete this prompt");
+      return;
+    }
+    
     // Remove prompt
     setPrompts(prev => prev.filter(prompt => prompt.id !== id));
     
@@ -373,6 +403,11 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Toggle favorite status
   const toggleFavorite = (id: string) => {
+    if (!user) {
+      toast.error("You must be signed in to add to favorites");
+      return;
+    }
+    
     // First find the prompt to determine its current favorite status
     const prompt = prompts.find(p => p.id === id);
     if (!prompt) return;
@@ -437,6 +472,11 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Add prompt to collection
   const addPromptToCollection = (promptId: string, collectionId: string) => {
+    if (!user) {
+      toast.error("You must be signed in to perform this action");
+      return;
+    }
+    
     // Update the prompt
     setPrompts(prev => 
       prev.map(prompt => 
@@ -461,6 +501,11 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Remove prompt from collection
   const removePromptFromCollection = (promptId: string, collectionId: string) => {
+    if (!user) {
+      toast.error("You must be signed in to perform this action");
+      return;
+    }
+    
     // Update the prompt
     setPrompts(prev => 
       prev.map(prompt => 

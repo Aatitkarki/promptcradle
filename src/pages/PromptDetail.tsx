@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { usePrompts } from "@/context/PromptContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +26,9 @@ import {
   Variable,
   TextCursorInput,
   Check,
-  RefreshCcw
+  RefreshCcw,
+  Lock,
+  Globe
 } from "lucide-react";
 import PromptForm from "@/components/PromptForm";
 import { toast } from "sonner";
@@ -33,6 +37,7 @@ const PromptDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { prompts, collections, deletePrompt, toggleFavorite } = usePrompts();
+  const { user } = useAuth();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [placeholders, setPlaceholders] = useState<string[]>([]);
@@ -47,6 +52,9 @@ const PromptDetail: React.FC = () => {
     navigate("/");
     return null;
   }
+
+  // Check if user can edit the prompt (if they're the creator or if it's public)
+  const canEdit = user && (prompt.createdBy === user.id || !prompt.isPrivate);
   
   // Extract placeholders when prompt content changes
   useEffect(() => {
@@ -116,6 +124,11 @@ const PromptDetail: React.FC = () => {
   };
   
   const handleDelete = () => {
+    if (!user) {
+      toast.error("You must be signed in to delete prompts");
+      return;
+    }
+    
     deletePrompt(prompt.id);
     navigate("/");
   };
@@ -174,9 +187,22 @@ const PromptDetail: React.FC = () => {
           <CardHeader className="p-6 pb-0">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight">
-                  {prompt.title}
-                </h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold tracking-tight">
+                    {prompt.title}
+                  </h2>
+                  {prompt.isPrivate ? (
+                    <Badge variant="outline" className="gap-1 bg-yellow-100">
+                      <Lock className="h-3 w-3" />
+                      Private
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="gap-1 bg-green-100">
+                      <Globe className="h-3 w-3" />
+                      Public
+                    </Badge>
+                  )}
+                </div>
                 
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   {collection && (
@@ -205,31 +231,36 @@ const PromptDetail: React.FC = () => {
                   Copy
                 </Button>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1"
-                  onClick={() => setIsEditDialogOpen(true)}
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`gap-1 ${
-                    prompt.isFavorite ? "text-yellow-500" : ""
-                  }`}
-                  onClick={() => toggleFavorite(prompt.id)}
-                >
-                  {prompt.isFavorite ? (
-                    <Star className="h-4 w-4 fill-yellow-400" />
-                  ) : (
-                    <StarOff className="h-4 w-4" />
-                  )}
-                  {prompt.isFavorite ? "Favorited" : "Favorite"}
-                </Button>
+                {user && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setIsEditDialogOpen(true)}
+                      disabled={!canEdit}
+                    >
+                      <Edit className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`gap-1 ${
+                        prompt.isFavorite ? "text-yellow-500" : ""
+                      }`}
+                      onClick={() => toggleFavorite(prompt.id)}
+                    >
+                      {prompt.isFavorite ? (
+                        <Star className="h-4 w-4 fill-yellow-400" />
+                      ) : (
+                        <StarOff className="h-4 w-4" />
+                      )}
+                      {prompt.isFavorite ? "Favorited" : "Favorite"}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -257,6 +288,9 @@ const PromptDetail: React.FC = () => {
                   <p>Version: {prompt.version}</p>
                   <p>Created: {formatDate(prompt.createdAt)}</p>
                   <p>Last Updated: {formatDate(prompt.updatedAt)}</p>
+                  {prompt.createdBy && (
+                    <p>Created by: {prompt.createdByUsername || prompt.createdBy}</p>
+                  )}
                 </div>
               </TabsContent>
               
@@ -319,7 +353,7 @@ const PromptDetail: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    No placeholders found in this prompt. Use {{"{placeholder}"}} syntax in your prompt content.
+                    No placeholders found in this prompt. Use {"{{"}}placeholder{"}}"} syntax in your prompt content.
                   </div>
                 )}
               </TabsContent>
@@ -378,15 +412,18 @@ const PromptDetail: React.FC = () => {
               </Button>
             </div>
             
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1 text-destructive"
-              onClick={handleDelete}
-            >
-              <Trash className="h-4 w-4" />
-              Delete
-            </Button>
+            {user && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1 text-destructive"
+                onClick={handleDelete}
+                disabled={!canEdit}
+              >
+                <Trash className="h-4 w-4" />
+                Delete
+              </Button>
+            )}
           </CardFooter>
         </Card>
       </div>

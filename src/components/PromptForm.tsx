@@ -14,6 +14,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import TagsInput from "./TagsInput";
+import { Switch } from "@/components/ui/switch";
 
 interface PromptFormProps {
   prompt?: Prompt;
@@ -31,6 +32,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
   const [tags, setTags] = useState<Tag[]>(prompt?.tags || []);
   const [collectionId, setCollectionId] = useState<string | undefined>(prompt?.collectionId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(prompt?.isPrivate || false);
   
   const isEditing = !!prompt;
   
@@ -44,7 +46,8 @@ const PromptForm: React.FC<PromptFormProps> = ({
           title,
           content,
           tags,
-          collectionId
+          collectionId,
+          isPrivate
         });
       } else {
         addPrompt({
@@ -52,7 +55,8 @@ const PromptForm: React.FC<PromptFormProps> = ({
           content,
           tags,
           collectionId,
-          isFavorite: false
+          isFavorite: false,
+          isPrivate
         });
       }
       
@@ -91,7 +95,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
             required
           />
           <p className="text-xs text-muted-foreground">
-            Use {{"{placeholder}"}} syntax for dynamic values.
+            Use {"{{"}}placeholder{"}}"} syntax for dynamic values.
           </p>
         </div>
         
@@ -121,6 +125,20 @@ const PromptForm: React.FC<PromptFormProps> = ({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="privacy"
+            checked={isPrivate}
+            onCheckedChange={setIsPrivate}
+          />
+          <Label htmlFor="privacy" className="cursor-pointer">
+            Private Prompt
+          </Label>
+          <p className="text-xs text-muted-foreground ml-1">
+            (Only visible to you when signed in)
+          </p>
         </div>
       </div>
       
