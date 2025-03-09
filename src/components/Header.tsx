@@ -25,6 +25,7 @@ import {
 import SearchBar from "./SearchBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import PromptForm from "./PromptForm";
+import UserMenu from "./UserMenu";
 
 const Header: React.FC = () => {
   const { 
@@ -159,6 +160,8 @@ const Header: React.FC = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            
+            <UserMenu />
           </div>
         </div>
         

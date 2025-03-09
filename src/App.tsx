@@ -24,9 +24,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <div className="min-h-screen flex flex-col">
-              <Header>
-                <UserMenu />
-              </Header>
+              <Header />
               <main className="flex-1 container py-6 px-4">
                 <AnimatePresence mode="wait">
                   <Routes>
