@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -352,7 +353,7 @@ const PromptDetail: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    No placeholders found in this prompt. Use {"{{"}}placeholder{"}}"} syntax in your prompt content.
+                    No placeholders found in this prompt. Use {"{{placeholder}}"} syntax in your prompt content.
                   </div>
                 )}
               </TabsContent>
