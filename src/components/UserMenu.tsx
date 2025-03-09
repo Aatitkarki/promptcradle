@@ -14,6 +14,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LogIn, LogOut, User, UserPlus } from "lucide-react";
 import AuthDialog from "./AuthDialog";
+import { toast } from "sonner";
 
 const UserMenu: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -21,6 +22,7 @@ const UserMenu: React.FC = () => {
   
   const handleCloseAuthDialog = () => {
     setIsAuthDialogOpen(false);
+    toast.success("Welcome back!");
   };
   
   return (
