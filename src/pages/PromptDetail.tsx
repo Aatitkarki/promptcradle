@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -44,48 +43,38 @@ const PromptDetail: React.FC = () => {
   const [placeholderValues, setPlaceholderValues] = useState<Record<string, string>>({});
   const [filledPrompt, setFilledPrompt] = useState("");
   
-  // Find the prompt by ID
   const prompt = prompts.find(p => p.id === id);
   
-  // If prompt not found, navigate back to home
   if (!prompt) {
     navigate("/");
     return null;
   }
 
-  // Check if user can edit the prompt (if they're the creator or if it's public)
   const canEdit = user && (prompt.createdBy === user.id || !prompt.isPrivate);
   
-  // Extract placeholders when prompt content changes
   useEffect(() => {
     if (prompt?.content) {
-      // Updated RegEx to find all {{placeholder}} occurrences
       const regex = /{{([^{}]+)}}/g;
       const matches = [...prompt.content.matchAll(regex)];
       const extractedPlaceholders = matches.map(match => match[1]);
       
-      // Filter out duplicates
       const uniquePlaceholders = [...new Set(extractedPlaceholders)];
       setPlaceholders(uniquePlaceholders);
       
-      // Initialize placeholder values
       const initialValues: Record<string, string> = {};
       uniquePlaceholders.forEach(placeholder => {
         initialValues[placeholder] = "";
       });
       setPlaceholderValues(initialValues);
       
-      // Initialize filled prompt with original content
       setFilledPrompt(prompt.content);
     }
   }, [prompt?.content]);
   
-  // Update filled prompt when placeholder values change
   useEffect(() => {
     if (prompt?.content && Object.keys(placeholderValues).length > 0) {
       let filled = prompt.content;
       Object.entries(placeholderValues).forEach(([key, value]) => {
-        // Updated to use double curly braces
         filled = filled.replace(new RegExp(`{{${key}}}`, 'g'), value || `{{${key}}}`);
       });
       setFilledPrompt(filled);
@@ -100,7 +89,6 @@ const PromptDetail: React.FC = () => {
   };
   
   const handleResetPlaceholders = () => {
-    // Reset all placeholder values to empty strings
     const resetValues: Record<string, string> = {};
     placeholders.forEach(placeholder => {
       resetValues[placeholder] = "";
@@ -154,7 +142,6 @@ const PromptDetail: React.FC = () => {
     toast.success("Prompt exported successfully");
   };
   
-  // Format dates for display
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString(undefined, {
       year: "numeric",
