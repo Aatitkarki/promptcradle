@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
 import { useAuth } from "@/context/AuthContext";
@@ -186,7 +185,6 @@ const CollectionsList: React.FC = () => {
     </div>
   );
 
-  // On mobile, use a drawer for collections
   if (isMobile) {
     return (
       <div className="mb-4">
@@ -216,42 +214,29 @@ const CollectionsList: React.FC = () => {
               ))}
             </div>
             <DrawerFooter>
-              <Drawer>
-                <DrawerTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={(e) => {
-                      if (!user) {
-                        e.preventDefault();
-                        toast.error("Please sign in to create a new collection");
-                      }
-                    }}
-                  >
-                    {user ? (
-                      <>
-                        <Plus className="mr-2 h-4 w-4" />
-                        New Collection
-                      </>
-                    ) : (
-                      <>
-                        <LogIn className="mr-2 h-4 w-4" />
-                        Sign in to create
-                      </>
-                    )}
-                  </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>
-                      {editCollection ? "Edit" : "Create"} Collection
-                    </DrawerTitle>
-                  </DrawerHeader>
-                  <div className="px-4">
-                    <CollectionForm />
-                  </div>
-                </DrawerContent>
-              </Drawer>
+              {user && (
+                <Drawer>
+                  <DrawerTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Collection
+                    </Button>
+                  </DrawerTrigger>
+                  <DrawerContent>
+                    <DrawerHeader>
+                      <DrawerTitle>
+                        {editCollection ? "Edit" : "Create"} Collection
+                      </DrawerTitle>
+                    </DrawerHeader>
+                    <div className="px-4">
+                      <CollectionForm />
+                    </div>
+                  </DrawerContent>
+                </Drawer>
+              )}
               <DrawerClose asChild>
                 <Button variant="ghost">Close</Button>
               </DrawerClose>
@@ -277,46 +262,32 @@ const CollectionsList: React.FC = () => {
     );
   }
 
-  // On desktop, show collections sidebar
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Collections</h3>
-        <Dialog open={isNewCollectionOpen} onOpenChange={setIsNewCollectionOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8"
-              onClick={(e) => {
-                if (!user) {
-                  e.preventDefault();
-                  toast.error("Please sign in to create a new collection");
-                }
-              }}
-            >
-              {user ? (
-                <>
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  New
-                </>
-              ) : (
-                <>
-                  <LogIn className="h-3.5 w-3.5 mr-1" />
-                  Sign in
-                </>
-              )}
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editCollection ? "Edit" : "Create"} Collection
-              </DialogTitle>
-            </DialogHeader>
-            <CollectionForm />
-          </DialogContent>
-        </Dialog>
+        {user && (
+          <Dialog open={isNewCollectionOpen} onOpenChange={setIsNewCollectionOpen}>
+            <DialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8"
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                New
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {editCollection ? "Edit" : "Create"} Collection
+                </DialogTitle>
+              </DialogHeader>
+              <CollectionForm />
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
       
       <Separator />

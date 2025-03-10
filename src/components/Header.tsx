@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
 import { useAuth } from "@/context/AuthContext";
@@ -76,37 +75,22 @@ const Header: React.FC = () => {
               <Search className="h-4 w-4" />
             </Button>
             
-            <Dialog open={isNewPromptOpen} onOpenChange={setIsNewPromptOpen}>
-              <DialogTrigger asChild>
-                <Button 
-                  className="gap-1.5"
-                  onClick={(e) => {
-                    if (!user) {
-                      e.preventDefault();
-                      toast.error("Please sign in to create a new prompt");
-                    }
-                  }}
-                >
-                  {user ? (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline-block">New Prompt</span>
-                    </>
-                  ) : (
-                    <>
-                      <LogIn className="h-4 w-4" />
-                      <span className="hidden sm:inline-block">Sign in</span>
-                    </>
-                  )}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                  <DialogTitle>Create New Prompt</DialogTitle>
-                </DialogHeader>
-                <PromptForm onSuccess={() => setIsNewPromptOpen(false)} />
-              </DialogContent>
-            </Dialog>
+            {user && (
+              <Dialog open={isNewPromptOpen} onOpenChange={setIsNewPromptOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-1.5">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline-block">New Prompt</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Create New Prompt</DialogTitle>
+                  </DialogHeader>
+                  <PromptForm onSuccess={() => setIsNewPromptOpen(false)} />
+                </DialogContent>
+              </Dialog>
+            )}
             
             <Separator orientation="vertical" className="h-6" />
             
