@@ -1,18 +1,21 @@
 
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
+import { useAuth } from "@/context/AuthContext";
 import { Collection } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { 
   Plus, 
   Folder, 
   Edit, 
   Trash, 
-  ChevronRight 
+  ChevronRight,
+  LogIn
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -37,6 +40,7 @@ const CollectionsList: React.FC = () => {
     setSelectedCollection
   } = usePrompts();
   
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   
   const [isNewCollectionOpen, setIsNewCollectionOpen] = useState(false);
@@ -47,6 +51,11 @@ const CollectionsList: React.FC = () => {
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user && !editCollection) {
+      toast.error("Please sign in to create a new collection");
+      return;
+    }
     
     if (editCollection) {
       updateCollection(editCollection.id, { name, description });
@@ -69,6 +78,14 @@ const CollectionsList: React.FC = () => {
   
   const handleDelete = (id: string) => {
     deleteCollection(id);
+  };
+  
+  const handleNewCollection = () => {
+    if (!user) {
+      toast.error("Please sign in to create a new collection");
+      return;
+    }
+    setIsNewCollectionOpen(true);
   };
   
   const CollectionForm = () => (
@@ -108,10 +125,16 @@ const CollectionsList: React.FC = () => {
         >
           Cancel
         </Button>
-        <Button type="submit">
+        <Button type="submit" disabled={!user && !editCollection}>
           {editCollection ? "Update" : "Create"} Collection
         </Button>
       </div>
+      
+      {!user && !editCollection && (
+        <p className="text-sm text-destructive text-center">
+          Please sign in to create a new collection
+        </p>
+      )}
     </form>
   );
 
@@ -195,9 +218,27 @@ const CollectionsList: React.FC = () => {
             <DrawerFooter>
               <Drawer>
                 <DrawerTrigger asChild>
-                  <Button variant="outline" className="w-full">
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Collection
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={(e) => {
+                      if (!user) {
+                        e.preventDefault();
+                        toast.error("Please sign in to create a new collection");
+                      }
+                    }}
+                  >
+                    {user ? (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        New Collection
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Sign in to create
+                      </>
+                    )}
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>
@@ -243,9 +284,28 @@ const CollectionsList: React.FC = () => {
         <h3 className="font-medium">Collections</h3>
         <Dialog open={isNewCollectionOpen} onOpenChange={setIsNewCollectionOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" className="h-8">
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              New
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8"
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  toast.error("Please sign in to create a new collection");
+                }
+              }}
+            >
+              {user ? (
+                <>
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  New
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-3.5 w-3.5 mr-1" />
+                  Sign in
+                </>
+              )}
             </Button>
           </DialogTrigger>
           <DialogContent>

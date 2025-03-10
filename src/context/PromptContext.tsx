@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Prompt, Tag, Collection, SortOption, ViewMode, User } from "@/types";
 import { toast } from "sonner";
@@ -189,6 +188,11 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   
   // Add a new prompt
   const addPrompt = (promptData: Omit<Prompt, "id" | "createdAt" | "updatedAt" | "version">) => {
+    if (!user) {
+      toast.error("You must be signed in to create prompts");
+      return;
+    }
+    
     const newPrompt: Prompt = {
       ...promptData,
       id: `prompt-${generateId()}`,
@@ -215,6 +219,23 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     toast.success("Prompt saved successfully");
+  };
+  
+  // Add a new collection
+  const addCollection = (collectionData: Omit<Collection, "id" | "promptIds">) => {
+    if (!user) {
+      toast.error("You must be signed in to create collections");
+      return;
+    }
+    
+    const newCollection: Collection = {
+      ...collectionData,
+      id: `col-${generateId()}`,
+      promptIds: []
+    };
+    
+    setCollections(prev => [...prev, newCollection]);
+    toast.success("Collection created successfully");
   };
   
   // Update an existing prompt
@@ -318,18 +339,6 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
     
     toast.success("Prompt deleted successfully");
-  };
-  
-  // Add a new collection
-  const addCollection = (collectionData: Omit<Collection, "id" | "promptIds">) => {
-    const newCollection: Collection = {
-      ...collectionData,
-      id: `col-${generateId()}`,
-      promptIds: []
-    };
-    
-    setCollections(prev => [...prev, newCollection]);
-    toast.success("Collection created successfully");
   };
   
   // Update a collection
@@ -577,3 +586,4 @@ export const usePrompts = () => {
   }
   return context;
 };
+

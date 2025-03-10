@@ -1,8 +1,10 @@
 
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +22,8 @@ import {
   Clock,
   ArrowDownAZ,
   ArrowUpAZ,
-  MoreVertical
+  MoreVertical,
+  LogIn
 } from "lucide-react";
 import SearchBar from "./SearchBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -36,8 +39,17 @@ const Header: React.FC = () => {
     clearFilters
   } = usePrompts();
   
+  const { user } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNewPromptOpen, setIsNewPromptOpen] = useState(false);
+
+  const handleNewPromptClick = () => {
+    if (!user) {
+      toast.error("Please sign in to create a new prompt");
+      return;
+    }
+    setIsNewPromptOpen(true);
+  };
 
   return (
     <header className="sticky top-0 z-10 w-full bg-background/80 backdrop-blur-md border-b border-border/50 px-4 py-3">
@@ -66,9 +78,26 @@ const Header: React.FC = () => {
             
             <Dialog open={isNewPromptOpen} onOpenChange={setIsNewPromptOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-1.5">
-                  <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline-block">New Prompt</span>
+                <Button 
+                  className="gap-1.5"
+                  onClick={(e) => {
+                    if (!user) {
+                      e.preventDefault();
+                      toast.error("Please sign in to create a new prompt");
+                    }
+                  }}
+                >
+                  {user ? (
+                    <>
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline-block">New Prompt</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="h-4 w-4" />
+                      <span className="hidden sm:inline-block">Sign in</span>
+                    </>
+                  )}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[600px]">

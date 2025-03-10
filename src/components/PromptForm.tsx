@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
+import { useAuth } from "@/context/AuthContext";
 import { Prompt, Tag } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import TagsInput from "./TagsInput";
 import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
 
 interface PromptFormProps {
   prompt?: Prompt;
@@ -26,6 +28,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
   onSuccess 
 }) => {
   const { addPrompt, updatePrompt, collections } = usePrompts();
+  const { user } = useAuth();
   
   const [title, setTitle] = useState(prompt?.title || "");
   const [content, setContent] = useState(prompt?.content || "");
@@ -38,6 +41,12 @@ const PromptForm: React.FC<PromptFormProps> = ({
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user && !isEditing) {
+      toast.error("Please sign in to create a new prompt");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -146,10 +155,19 @@ const PromptForm: React.FC<PromptFormProps> = ({
         <Button type="button" variant="outline" onClick={onSuccess}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting || (!user && !isEditing)}
+        >
           {isEditing ? "Update" : "Save"} Prompt
         </Button>
       </div>
+      
+      {!user && !isEditing && (
+        <p className="text-sm text-destructive text-center">
+          Please sign in to create a new prompt
+        </p>
+      )}
     </form>
   );
 };
