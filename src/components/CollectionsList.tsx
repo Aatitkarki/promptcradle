@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
 import { useAuth } from "@/context/AuthContext";
@@ -158,30 +159,32 @@ const CollectionsList: React.FC = () => {
         </span>
       </div>
       
-      <div className="flex items-center gap-1">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-7 w-7"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleEdit(collection);
-          }}
-        >
-          <Edit className="h-3.5 w-3.5" />
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="h-7 w-7 text-destructive" 
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDelete(collection.id);
-          }}
-        >
-          <Trash className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+      {user && (
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(collection);
+            }}
+          >
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-7 w-7 text-destructive" 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(collection.id);
+            }}
+          >
+            <Trash className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 
