@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -111,7 +110,6 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, layoutMode = "grid" }) 
     day: "numeric"
   });
 
-  // Apply correct classes based on layout mode
   const cardClasses = layoutMode === "grid" 
     ? "h-full" 
     : "flex flex-row items-start";
@@ -246,8 +244,8 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, layoutMode = "grid" }) 
           </div>
         </CardHeader>
         <CardContent className={`${cardContentClasses} p-4`}>
-          <div className="text-sm text-muted-foreground line-clamp-3">
-            {prompt.content}
+          <div className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
+            {prompt.content.replace(/{/g, "{{").replace(/}/g, "}}")}
           </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex flex-col items-start gap-2">
