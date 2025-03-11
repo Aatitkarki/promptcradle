@@ -68,7 +68,7 @@ const initialPrompts: Prompt[] = [
   {
     id: "prompt-1",
     title: "Creative Story Generator",
-    content: "Write a short story about {{character}} who discovers {{magical object}} and how it changes their life.",
+    content: "Write a nice short story about {{character}} who discovers about {{magical object}} and how it changes their life.",
     tags: [initialTags[0], initialTags[2]],
     createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000),

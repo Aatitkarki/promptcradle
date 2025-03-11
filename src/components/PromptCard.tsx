@@ -245,7 +245,7 @@ const PromptCard: React.FC<PromptCardProps> = ({ prompt, layoutMode = "grid" }) 
         </CardHeader>
         <CardContent className={`${cardContentClasses} p-4`}>
           <div className="text-sm text-muted-foreground line-clamp-3 whitespace-pre-wrap">
-            {prompt.content.replace(/{/g, "{{").replace(/}/g, "}}")}
+            {prompt.content}
           </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex flex-col items-start gap-2">
