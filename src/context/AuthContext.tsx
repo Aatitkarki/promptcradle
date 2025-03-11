@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { toast } from "sonner";
+import { signIn as supabaseSignIn, signUp as supabaseSignUp, signOut as supabaseSignOut, getCurrentUser } from "@/services/supabase";
 
 type AuthContextType = {
   user: User | null;
@@ -13,55 +14,35 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to generate random IDs
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for saved user data on component mount
+  // Check for authenticated user on component mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setIsLoading(false);
+    const checkUser = async () => {
+      try {
+        const user = await getCurrentUser();
+        setUser(user);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkUser();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Simulate API call
       setIsLoading(true);
-      
-      // Retrieve users from localStorage
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const foundUser = users.find((u: any) => 
-        u.email.toLowerCase() === email.toLowerCase()
-      );
-      
-      if (!foundUser) {
-        throw new Error("User not found. Please check your email or sign up.");
-      }
-      
-      // In a real app, you would use proper password hashing and validation
-      if (foundUser.password !== password) {
-        throw new Error("Invalid password. Please try again.");
-      }
-      
-      // Create the user object (excluding the password)
-      const userObj: User = {
-        id: foundUser.id,
-        username: foundUser.username,
-        email: foundUser.email
-      };
-      
-      // Save user to state and localStorage
-      setUser(userObj);
-      localStorage.setItem('user', JSON.stringify(userObj));
-      
+      await supabaseSignIn(email, password);
+      const user = await getCurrentUser();
+      setUser(user);
       toast.success("Signed in successfully!");
     } catch (error) {
+      console.error("Sign in error:", error);
       toast.error(error instanceof Error ? error.message : "Error signing in");
       throw error;
     } finally {
@@ -72,40 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (username: string, email: string, password: string) => {
     try {
       setIsLoading(true);
-      
-      // Retrieve existing users or initialize empty array
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      
-      // Check if user with email already exists
-      if (users.some((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
-        throw new Error("A user with this email already exists");
-      }
-      
-      // Create new user
-      const newUser = {
-        id: `user-${generateId()}`,
-        username,
-        email,
-        password // In a real app, this would be hashed
-      };
-      
-      // Add new user to the users array
-      users.push(newUser);
-      localStorage.setItem('users', JSON.stringify(users));
-      
-      // Create the user object for the context (excluding the password)
-      const userObj: User = {
-        id: newUser.id,
-        username: newUser.username,
-        email: newUser.email
-      };
-      
-      // Save user to state and localStorage
-      setUser(userObj);
-      localStorage.setItem('user', JSON.stringify(userObj));
-      
+      await supabaseSignUp(username, email, password);
+      const user = await getCurrentUser();
+      setUser(user);
       toast.success("Account created successfully!");
     } catch (error) {
+      console.error("Sign up error:", error);
       toast.error(error instanceof Error ? error.message : "Error creating account");
       throw error;
     } finally {
@@ -113,10 +66,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-    toast.info("Signed out successfully");
+  const signOut = async () => {
+    try {
+      await supabaseSignOut();
+      setUser(null);
+      toast.info("Signed out successfully");
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast.error("Error signing out");
+    }
   };
 
   return (

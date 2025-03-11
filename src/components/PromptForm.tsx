@@ -17,6 +17,7 @@ import {
 import TagsInput from "./TagsInput";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 interface PromptFormProps {
   prompt?: Prompt;
@@ -39,7 +40,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
   
   const isEditing = !!prompt;
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user && !isEditing) {
@@ -51,7 +52,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
     
     try {
       if (isEditing) {
-        updatePrompt(prompt.id, {
+        await updatePrompt(prompt.id, {
           title,
           content,
           tags,
@@ -59,7 +60,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
           isPrivate
         });
       } else {
-        addPrompt({
+        await addPrompt({
           title,
           content,
           tags,
@@ -120,7 +121,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
           <Label htmlFor="collection">Collection</Label>
           <Select
             value={collectionId}
-            onValueChange={(value) => setCollectionId(value)}
+            onValueChange={(value) => setCollectionId(value === "none" ? undefined : value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select a collection" />
@@ -159,7 +160,14 @@ const PromptForm: React.FC<PromptFormProps> = ({
           type="submit" 
           disabled={isSubmitting || (!user && !isEditing)}
         >
-          {isEditing ? "Update" : "Save"} Prompt
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isEditing ? "Updating..." : "Saving..."}
+            </>
+          ) : (
+            isEditing ? "Update" : "Save"
+          )} Prompt
         </Button>
       </div>
       
