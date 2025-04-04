@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/nestjs-prompt-app/node_modules
+node_modules/

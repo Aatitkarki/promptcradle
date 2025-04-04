@@ -1,8 +1,9 @@
+console.log('AuthContext: useAuth start');
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { User } from "@/types";
 import { toast } from "sonner";
-import { signIn as supabaseSignIn, signUp as supabaseSignUp, signOut as supabaseSignOut, getCurrentUser } from "@/services/supabase";
+import { } from "@/services/supabase";
 
 type AuthContextType = {
   user: User | null;
@@ -22,7 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const user = await getCurrentUser();
+        const user = null;
         setUser(user);
       } catch (error) {
         console.error("Error checking authentication:", error);
@@ -35,32 +36,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      await supabaseSignIn(email, password);
-      const user = await getCurrentUser();
+      // TODO: Implement custom sign-in logic
+      const user = { id: 'temp', username: email.split('@')[0], email };
       setUser(user);
       toast.success("Signed in successfully!");
     } catch (error) {
       console.error("Sign in error:", error);
       toast.error(error instanceof Error ? error.message : "Error signing in");
-      throw error;
     } finally {
       setIsLoading(false);
     }
   };
 
   const signUp = async (username: string, email: string, password: string) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      await supabaseSignUp(username, email, password);
-      const user = await getCurrentUser();
+      // TODO: Implement custom sign-up logic
+      const user = { id: 'temp', username, email };
       setUser(user);
       toast.success("Account created successfully!");
     } catch (error) {
       console.error("Sign up error:", error);
       toast.error(error instanceof Error ? error.message : "Error creating account");
-      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await supabaseSignOut();
+      // TODO: Implement custom sign-out logic
       setUser(null);
       toast.info("Signed out successfully");
     } catch (error) {
@@ -91,3 +90,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+console.log('AuthContext: useAuth end');

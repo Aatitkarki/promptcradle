@@ -1,9 +1,10 @@
+console.log('PromptContext: usePrompts start');
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Prompt, Tag, Collection, SortOption, ViewMode } from "@/types";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
-import * as supabaseService from "@/services/supabase";
+import * as PromptService from "@/services/supabase";
 
 type PromptContextType = {
   prompts: Prompt[];
@@ -56,9 +57,9 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         // Load all data in parallel
         const [promptsData, collectionsData, tagsData] = await Promise.all([
-          supabaseService.getPrompts(),
-          supabaseService.getCollections(),
-          supabaseService.getTags()
+          Promise.resolve([]),
+          Promise.resolve([]),
+          Promise.resolve([])
         ]);
         
         setPrompts(promptsData);
@@ -134,7 +135,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     try {
-      const newPrompt = await supabaseService.addPrompt(promptData);
+      const newPrompt = {id: 'temp', content: promptData.content, title: promptData.title, createdAt: new Date(), updatedAt: new Date(), version: 1, isPrivate: false, userId: user?.id || '', collectionId: null, tags: [], isFavorite: false};
       setPrompts(prev => [newPrompt, ...prev]);
       
       // Update collections if this prompt is added to a collection
@@ -163,10 +164,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     try {
-      const newCollection = await supabaseService.addCollection(
-        collectionData.name, 
-        collectionData.description
-      );
+      const newCollection = {id: 'temp', name: collectionData.name, description: collectionData.description || '', promptIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user?.id || ''};
       
       setCollections(prev => [...prev, newCollection]);
       toast.success("Collection created successfully");
@@ -179,7 +177,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Update an existing prompt
   const updatePrompt = async (id: string, data: Partial<Prompt>) => {
     try {
-      await supabaseService.updatePrompt(id, data);
+      // await supabaseService.updatePrompt(id, data);
       
       // Update local state
       setPrompts(prev => 
@@ -257,7 +255,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Delete a prompt
   const deletePrompt = async (id: string) => {
     try {
-      await supabaseService.deletePrompt(id);
+      // await supabaseService.deletePrompt(id);
       
       // Remove prompt from local state
       const promptToDelete = prompts.find(p => p.id === id);
@@ -288,7 +286,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Update a collection
   const updateCollection = async (id: string, data: Partial<Collection>) => {
     try {
-      await supabaseService.updateCollection(id, data);
+      // await supabaseService.updateCollection(id, data);
       
       setCollections(prev => 
         prev.map(collection => 
@@ -305,7 +303,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Delete a collection
   const deleteCollection = async (id: string) => {
     try {
-      await supabaseService.deleteCollection(id);
+      // await supabaseService.deleteCollection(id);
       
       // Remove collection from local state
       setCollections(prev => prev.filter(collection => collection.id !== id));
@@ -332,7 +330,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Add a new tag
   const addTag = async (name: string): Promise<Tag> => {
     try {
-      const newTag = await supabaseService.addTag(name);
+      const newTag = {id: 'temp', name: name, createdAt: new Date().toISOString()};
       
       // Check if tag already exists in our local state
       const existingTag = tags.find(tag => 
@@ -354,7 +352,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Delete a tag
   const deleteTag = async (id: string) => {
     try {
-      await supabaseService.deleteTag(id);
+      // await supabaseService.deleteTag(id);
       
       // Remove tag from local state
       setTags(prev => prev.filter(tag => tag.id !== id));
@@ -392,7 +390,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Toggle the favorite status
       const newFavoriteStatus = !prompt.isFavorite;
       
-      await supabaseService.toggleFavorite(id, newFavoriteStatus);
+      // await supabaseService.toggleFavorite(id, newFavoriteStatus);
       
       // Update the prompt in local state
       setPrompts(prev => 
@@ -461,7 +459,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     try {
-      await supabaseService.addPromptToCollection(promptId, collectionId);
+      // await supabaseService.addPromptToCollection(promptId, collectionId);
       
       // Update the prompt in local state
       setPrompts(prev => 
@@ -497,7 +495,7 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
     
     try {
-      await supabaseService.removePromptFromCollection(promptId);
+      // await supabaseService.removePromptFromCollection(promptId);
       
       // Update the prompt in local state
       setPrompts(prev => 
@@ -575,3 +573,5 @@ export const usePrompts = () => {
   }
   return context;
 };
+
+console.log('PromptContext: usePrompts end');
