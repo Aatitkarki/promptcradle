@@ -1,4 +1,3 @@
-
 import { AnimationProps } from "framer-motion";
 
 // Shared animations for consistent feel across the app

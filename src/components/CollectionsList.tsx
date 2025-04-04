@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { usePrompts } from "@/context/PromptContext";
 import { useAuth } from "@/context/AuthContext";

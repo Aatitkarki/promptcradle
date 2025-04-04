@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from "react";
 import { usePrompts } from "@/context/PromptContext";
 import { Input } from "@/components/ui/input";

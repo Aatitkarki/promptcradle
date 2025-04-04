@@ -1,10 +1,10 @@
 console.log('PromptContext: usePrompts start');
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { Prompt, Tag, Collection, SortOption, ViewMode } from "@/types";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { Prompt, Tag, Collection, SortOption, ViewMode, User } from "@/types";
 import { toast } from "sonner";
 import { useAuth } from "./AuthContext";
-import * as PromptService from "@/services/supabase";
+import * as ApiService from "@/services/api"; // Import the new API service
 
 type PromptContextType = {
   prompts: Prompt[];
@@ -15,25 +15,26 @@ type PromptContextType = {
   searchQuery: string;
   sortOption: SortOption;
   viewMode: ViewMode;
-  addPrompt: (prompt: Omit<Prompt, "id" | "createdAt" | "updatedAt" | "version">) => void;
-  updatePrompt: (id: string, data: Partial<Prompt>) => void;
-  deletePrompt: (id: string) => void;
-  addCollection: (collection: Omit<Collection, "id" | "promptIds">) => void;
-  updateCollection: (id: string, data: Partial<Collection>) => void;
-  deleteCollection: (id: string) => void;
-  addTag: (name: string) => Promise<Tag>;
-  deleteTag: (id: string) => void;
-  toggleFavorite: (id: string) => void;
+  addPrompt: (prompt: Omit<Prompt, "id" | "createdAt" | "updatedAt" | "version" | "tags"> & { tags?: string[] }) => Promise<void>;
+  updatePrompt: (id: string, data: Partial<Omit<Prompt, "tags">> & { tags?: string[] }) => Promise<void>;
+  deletePrompt: (id: string) => Promise<void>;
+  addCollection: (collection: Omit<Collection, "id" | "promptIds">) => Promise<void>;
+  updateCollection: (id: string, data: Partial<Collection>) => Promise<void>;
+  deleteCollection: (id: string) => Promise<void>;
+  addTag: (name: string) => Promise<Tag | undefined>; // Can return undefined if exists or error
+  deleteTag: (id: string) => Promise<void>;
+  toggleFavorite: (id: string) => Promise<void>;
   setSelectedCollection: (id: string | null) => void;
   toggleSelectedTag: (id: string) => void;
   setSearchQuery: (query: string) => void;
   setSortOption: (option: SortOption) => void;
   setViewMode: (mode: ViewMode) => void;
-  addPromptToCollection: (promptId: string, collectionId: string) => void;
-  removePromptFromCollection: (promptId: string, collectionId: string) => void;
+  addPromptToCollection: (promptId: string, collectionId: string) => Promise<void>;
+  removePromptFromCollection: (promptId: string, collectionId: string) => Promise<void>;
   clearFilters: () => void;
   filteredPrompts: Prompt[];
   isLoading: boolean;
+  fetchData: () => Promise<void>; // Expose function to refetch data
 };
 
 const PromptContext = createContext<PromptContextType | undefined>(undefined);
@@ -50,483 +51,495 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load data from Supabase
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // Load all data in parallel
-        const [promptsData, collectionsData, tagsData] = await Promise.all([
-          Promise.resolve([]),
-          Promise.resolve([]),
-          Promise.resolve([])
-        ]);
-        
-        setPrompts(promptsData);
-        setCollections(collectionsData);
-        setTags(tagsData);
-      } catch (error) {
-        console.error("Error loading data:", error);
-        toast.error("Failed to load data");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Load data using API service
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Fetch all data in parallel
+      // Adjust API calls based on whether user is logged in (e.g., fetch user-specific data)
+      const [promptsData, collectionsData, tagsData] = await Promise.all([
+        ApiService.getPrompts({ userId: user?.id }), // Fetch prompts (potentially filtered by user)
+        ApiService.getCollections(), // Fetch collections (potentially user-specific)
+        ApiService.getTags(),       // Fetch tags (likely public)
+      ]);
 
-    loadData();
+      // Ensure data is arrays even if API returns null/undefined on error/empty
+      setPrompts(promptsData || []);
+      setCollections(collectionsData || []);
+      setTags(tagsData || []);
+
+    } catch (error) {
+      console.error("Error loading data:", error);
+      toast.error("Failed to load data. Please try again.");
+      // Set to empty arrays on failure to avoid crashes
+      setPrompts([]);
+      setCollections([]);
+      setTags([]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]); // Reload when user changes
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // Initial fetch and refetch on user change
 
   // Filter prompts based on current filters
   const filteredPrompts = React.useMemo(() => {
-    return prompts
+     // Ensure prompts is always an array before filtering/sorting
+    const safePrompts = Array.isArray(prompts) ? prompts : [];
+
+    return safePrompts
       .filter((prompt) => {
-        // Filter by privacy: show only public prompts or private prompts owned by the current user
-        if (prompt.isPrivate && (!user || prompt.createdBy !== user.id)) {
-          return false;
-        }
-        
+        // Filter by privacy: Handled by backend via userId in getPrompts ideally
+        // Client-side check as fallback (if backend doesn't filter)
+        // if (prompt.isPrivate && (!user || prompt.createdBy !== user.id)) {
+        //   return false;
+        // }
+
         // Filter by collection if selected
         if (selectedCollection && prompt.collectionId !== selectedCollection) {
           return false;
         }
-        
-        // Filter by selected tags
+
+        // Filter by selected tags (check if prompt.tags includes ALL selectedTags)
         if (selectedTags.length > 0) {
-          const promptTagIds = prompt.tags.map(tag => tag.id);
-          if (!selectedTags.some(tagId => promptTagIds.includes(tagId))) {
-            return false;
+           // Ensure prompt.tags is an array
+          const promptTagIds = Array.isArray(prompt.tags) ? prompt.tags.map(tag => tag.id) : [];
+          if (!selectedTags.every(tagId => promptTagIds.includes(tagId))) {
+             return false;
           }
         }
-        
+
+
         // Filter by search query
         if (searchQuery) {
           const query = searchQuery.toLowerCase();
+          const tagNames = Array.isArray(prompt.tags) ? prompt.tags.map(t => t.name.toLowerCase()) : [];
           return (
-            prompt.title.toLowerCase().includes(query) ||
-            prompt.content.toLowerCase().includes(query) ||
-            prompt.tags.some(tag => tag.name.toLowerCase().includes(query))
+            prompt.title?.toLowerCase().includes(query) ||
+            prompt.content?.toLowerCase().includes(query) ||
+            tagNames.some(tagName => tagName.includes(query))
           );
         }
-        
+
         return true;
       })
       .sort((a, b) => {
         // Sort based on selected option
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        const updatedA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const updatedB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+
         switch (sortOption) {
           case "newest":
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            return dateB - dateA;
           case "oldest":
-            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            return dateA - dateB;
           case "alphabetical":
-            return a.title.localeCompare(b.title);
+            return (a.title || "").localeCompare(b.title || "");
           case "updated":
-            return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+            return updatedB - updatedA;
           default:
             return 0;
         }
       });
-  }, [prompts, selectedCollection, selectedTags, searchQuery, sortOption, user]);
-  
+  }, [prompts, selectedCollection, selectedTags, searchQuery, sortOption]); // Removed 'user' dependency as filtering logic relies on fetched data
+
   // Add a new prompt
-  const addPrompt = async (promptData: Omit<Prompt, "id" | "createdAt" | "updatedAt" | "version">) => {
+  const addPrompt = async (promptData: Omit<Prompt, "id" | "createdAt" | "updatedAt" | "version" | "tags"> & { tags?: string[] }) => {
     if (!user) {
       toast.error("You must be signed in to create prompts");
       return;
     }
-    
+
     try {
-      const newPrompt = {id: 'temp', content: promptData.content, title: promptData.title, createdAt: new Date(), updatedAt: new Date(), version: 1, isPrivate: false, userId: user?.id || '', collectionId: null, tags: [], isFavorite: false};
-      setPrompts(prev => [newPrompt, ...prev]);
-      
+      // The API call now includes the user context via the token
+      const newPrompt = await ApiService.addPrompt(promptData);
+      setPrompts(prev => [newPrompt, ...(Array.isArray(prev) ? prev : [])]); // Prepend new prompt
+
       // Update collections if this prompt is added to a collection
       if (newPrompt.collectionId) {
-        setCollections(prev => 
-          prev.map(collection => 
+        setCollections(prev =>
+          (Array.isArray(prev) ? prev : []).map(collection =>
             collection.id === newPrompt.collectionId
-              ? { ...collection, promptIds: [...collection.promptIds, newPrompt.id] }
+              ? { ...collection, promptIds: [...(collection.promptIds || []), newPrompt.id] }
               : collection
           )
         );
       }
-      
+
       toast.success("Prompt saved successfully");
     } catch (error) {
       console.error("Error adding prompt:", error);
-      toast.error("Failed to save prompt");
+      toast.error(error instanceof Error ? error.message : "Failed to save prompt");
     }
   };
-  
+
   // Add a new collection
   const addCollection = async (collectionData: Omit<Collection, "id" | "promptIds">) => {
     if (!user) {
       toast.error("You must be signed in to create collections");
       return;
     }
-    
+
     try {
-      const newCollection = {id: 'temp', name: collectionData.name, description: collectionData.description || '', promptIds: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userId: user?.id || ''};
-      
-      setCollections(prev => [...prev, newCollection]);
+      const newCollection = await ApiService.addCollection(collectionData);
+      setCollections(prev => [...(Array.isArray(prev) ? prev : []), newCollection]); // Append new collection
       toast.success("Collection created successfully");
     } catch (error) {
       console.error("Error adding collection:", error);
-      toast.error("Failed to create collection");
+      toast.error(error instanceof Error ? error.message : "Failed to create collection");
     }
   };
-  
+
   // Update an existing prompt
-  const updatePrompt = async (id: string, data: Partial<Prompt>) => {
+  const updatePrompt = async (id: string, data: Partial<Omit<Prompt, "tags">> & { tags?: string[] }) => {
+     if (!user) {
+      toast.error("You must be signed in to update prompts");
+      return;
+    }
     try {
-      // await supabaseService.updatePrompt(id, data);
-      
+      const updatedPrompt = await ApiService.updatePrompt(id, data);
+
       // Update local state
-      setPrompts(prev => 
-        prev.map(prompt => {
-          if (prompt.id === id) {
-            // Create new version history if content changed
-            let versionHistory = prompt.versionHistory || [];
-            if (data.content && data.content !== prompt.content) {
-              versionHistory = [
-                ...versionHistory,
-                {
-                  version: prompt.version,
-                  content: prompt.content,
-                  updatedAt: prompt.updatedAt
-                }
-              ];
-            }
-            
-            return {
-              ...prompt,
-              ...data,
-              updatedAt: new Date(),
-              version: data.content && data.content !== prompt.content 
-                ? prompt.version + 1 
-                : prompt.version,
-              versionHistory
-            };
-          }
-          return prompt;
-        })
+      setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(prompt =>
+          prompt.id === id ? updatedPrompt : prompt
+        )
       );
-      
-      // Handle collection changes if needed
-      if (data.collectionId !== undefined) {
-        const oldPrompt = prompts.find(p => p.id === id);
-        
-        // Remove from old collection
-        if (oldPrompt?.collectionId) {
-          setCollections(prev => 
-            prev.map(collection => {
-              if (collection.id === oldPrompt.collectionId) {
-                return { 
-                  ...collection, 
-                  promptIds: collection.promptIds.filter(promptId => promptId !== id) 
-                };
-              }
-              return collection;
-            })
-          );
-        }
-        
-        // Add to new collection if not null
-        if (data.collectionId) {
-          setCollections(prev => 
-            prev.map(collection => {
-              if (collection.id === data.collectionId && !collection.promptIds.includes(id)) {
-                return { 
-                  ...collection, 
-                  promptIds: [...collection.promptIds, id] 
-                };
-              }
-              return collection;
-            })
-          );
-        }
+
+      // Handle collection changes if needed (check if collectionId changed)
+      const oldPrompt = prompts.find(p => p.id === id);
+      const newCollectionId = updatedPrompt.collectionId;
+      const oldCollectionId = oldPrompt?.collectionId;
+
+      if (newCollectionId !== oldCollectionId) {
+        setCollections(prevCollections => (Array.isArray(prevCollections) ? prevCollections : []).map(collection => {
+          // Remove from old collection
+          if (collection.id === oldCollectionId && collection.promptIds?.includes(id)) {
+            return { ...collection, promptIds: collection.promptIds.filter(pid => pid !== id) };
+          }
+          // Add to new collection
+          if (collection.id === newCollectionId && !collection.promptIds?.includes(id)) {
+            return { ...collection, promptIds: [...(collection.promptIds || []), id] };
+          }
+          return collection;
+        }));
       }
-      
+
+
       toast.success("Prompt updated successfully");
     } catch (error) {
       console.error("Error updating prompt:", error);
-      toast.error("Failed to update prompt");
+      toast.error(error instanceof Error ? error.message : "Failed to update prompt");
     }
   };
-  
+
   // Delete a prompt
   const deletePrompt = async (id: string) => {
+     if (!user) {
+      toast.error("You must be signed in to delete prompts");
+      return;
+    }
     try {
-      // await supabaseService.deletePrompt(id);
-      
+      await ApiService.deletePrompt(id);
+
       // Remove prompt from local state
       const promptToDelete = prompts.find(p => p.id === id);
-      setPrompts(prev => prev.filter(prompt => prompt.id !== id));
-      
+      setPrompts(prev => (Array.isArray(prev) ? prev : []).filter(prompt => prompt.id !== id));
+
       // Update collections if needed
       if (promptToDelete?.collectionId) {
-        setCollections(prev => 
-          prev.map(collection => {
+        setCollections(prev =>
+          (Array.isArray(prev) ? prev : []).map(collection => {
             if (collection.id === promptToDelete.collectionId) {
               return {
                 ...collection,
-                promptIds: collection.promptIds.filter(promptId => promptId !== id)
+                promptIds: (collection.promptIds || []).filter(promptId => promptId !== id)
               };
             }
             return collection;
           })
         );
       }
-      
+
       toast.success("Prompt deleted successfully");
     } catch (error) {
       console.error("Error deleting prompt:", error);
-      toast.error("Failed to delete prompt");
+      toast.error(error instanceof Error ? error.message : "Failed to delete prompt");
     }
   };
-  
+
   // Update a collection
   const updateCollection = async (id: string, data: Partial<Collection>) => {
+     if (!user) {
+      toast.error("You must be signed in to update collections");
+      return;
+    }
     try {
-      // await supabaseService.updateCollection(id, data);
-      
-      setCollections(prev => 
-        prev.map(collection => 
-          collection.id === id ? { ...collection, ...data } : collection
+      const updatedCollection = await ApiService.updateCollection(id, data);
+      setCollections(prev =>
+        (Array.isArray(prev) ? prev : []).map(collection =>
+          collection.id === id ? updatedCollection : collection
         )
       );
       toast.success("Collection updated successfully");
     } catch (error) {
       console.error("Error updating collection:", error);
-      toast.error("Failed to update collection");
+      toast.error(error instanceof Error ? error.message : "Failed to update collection");
     }
   };
-  
+
   // Delete a collection
   const deleteCollection = async (id: string) => {
+     if (!user) {
+      toast.error("You must be signed in to delete collections");
+      return;
+    }
     try {
-      // await supabaseService.deleteCollection(id);
-      
+      await ApiService.deleteCollection(id);
+
       // Remove collection from local state
-      setCollections(prev => prev.filter(collection => collection.id !== id));
-      
-      // Update prompts that were in this collection
-      setPrompts(prev => 
-        prev.map(prompt => 
+      setCollections(prev => (Array.isArray(prev) ? prev : []).filter(collection => collection.id !== id));
+
+      // Update prompts that were in this collection (set collectionId to null/undefined)
+      setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(prompt =>
           prompt.collectionId === id ? { ...prompt, collectionId: undefined } : prompt
         )
       );
-      
+
       // Clear selected collection if it was the one deleted
       if (selectedCollection === id) {
         setSelectedCollection(null);
       }
-      
+
       toast.success("Collection deleted successfully");
     } catch (error) {
       console.error("Error deleting collection:", error);
-      toast.error("Failed to delete collection");
+      toast.error(error instanceof Error ? error.message : "Failed to delete collection");
     }
   };
-  
+
   // Add a new tag
-  const addTag = async (name: string): Promise<Tag> => {
+  const addTag = async (name: string): Promise<Tag | undefined> => {
+     if (!user) {
+      toast.error("You must be signed in to add tags");
+      return undefined;
+    }
+    // Check if tag already exists locally (case-insensitive)
+    const existingTag = (Array.isArray(tags) ? tags : []).find(tag => tag.name.toLowerCase() === name.toLowerCase());
+    if (existingTag) {
+        toast.info(`Tag "${name}" already exists.`);
+        return existingTag; // Return existing tag
+    }
+
     try {
-      const newTag = {id: 'temp', name: name, createdAt: new Date().toISOString()};
-      
-      // Check if tag already exists in our local state
-      const existingTag = tags.find(tag => 
-        tag.id === newTag.id || tag.name.toLowerCase() === newTag.name.toLowerCase()
-      );
-      
-      if (!existingTag) {
-        setTags(prev => [...prev, newTag]);
-      }
-      
-      return existingTag || newTag;
+      // Assumes CreateTagDto just needs { name: string }
+      const newTag = await ApiService.addTag({ name });
+      setTags(prev => [...(Array.isArray(prev) ? prev : []), newTag]); // Append new tag
+      toast.success(`Tag "${name}" added successfully`);
+      return newTag;
     } catch (error) {
       console.error("Error adding tag:", error);
-      toast.error("Failed to add tag");
-      throw error;
+      toast.error(error instanceof Error ? error.message : "Failed to add tag");
+      return undefined;
     }
   };
-  
+
   // Delete a tag
   const deleteTag = async (id: string) => {
+     if (!user) {
+      toast.error("You must be signed in to delete tags");
+      return;
+    }
     try {
-      // await supabaseService.deleteTag(id);
-      
+      await ApiService.deleteTag(id); // Use ID for deletion
+
       // Remove tag from local state
-      setTags(prev => prev.filter(tag => tag.id !== id));
-      
-      // Remove tag from prompts
-      setPrompts(prev => 
-        prev.map(prompt => ({
+      setTags(prev => (Array.isArray(prev) ? prev : []).filter(tag => tag.id !== id));
+
+      // Remove tag from prompts' tag arrays
+      setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(prompt => ({
           ...prompt,
-          tags: prompt.tags.filter(tag => tag.id !== id)
+          tags: (prompt.tags || []).filter(tag => tag.id !== id)
         }))
       );
-      
-      // Remove from selected tags
+
+      // Remove from selected tags filter
       setSelectedTags(prev => prev.filter(tagId => tagId !== id));
-      
+
       toast.success("Tag deleted successfully");
     } catch (error) {
       console.error("Error deleting tag:", error);
-      toast.error("Failed to delete tag");
+      toast.error(error instanceof Error ? error.message : "Failed to delete tag");
     }
   };
-  
+
   // Toggle favorite status
   const toggleFavorite = async (id: string) => {
     if (!user) {
-      toast.error("You must be signed in to add to favorites");
+      toast.error("You must be signed in to manage favorites");
       return;
     }
-    
-    try {
-      // First find the prompt to determine its current favorite status
-      const prompt = prompts.find(p => p.id === id);
-      if (!prompt) return;
-      
-      // Toggle the favorite status
-      const newFavoriteStatus = !prompt.isFavorite;
-      
-      // await supabaseService.toggleFavorite(id, newFavoriteStatus);
-      
-      // Update the prompt in local state
-      setPrompts(prev => 
-        prev.map(p => {
-          if (p.id === id) {
-            return { ...p, isFavorite: newFavoriteStatus };
-          }
-          return p;
-        })
+
+    const prompt = prompts.find(p => p.id === id);
+    if (!prompt) return;
+    const newFavoriteStatus = !prompt.isFavorite; // Optimistic update state first
+
+    // Optimistically update UI
+    setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(p =>
+          p.id === id ? { ...p, isFavorite: newFavoriteStatus } : p
+        )
       );
-      
-      // Find favorites collection
-      const favoritesCollection = collections.find(c => c.name === "Favorites");
-      
-      if (favoritesCollection) {
-        if (newFavoriteStatus) {
-          // Add to favorites collection
-          setCollections(prev => 
-            prev.map(collection => 
-              collection.id === favoritesCollection.id
-                ? { 
-                    ...collection, 
-                    promptIds: collection.promptIds.includes(id) 
-                      ? collection.promptIds 
-                      : [...collection.promptIds, id] 
-                  }
-                : collection
-            )
-          );
-        } else {
-          // Remove from favorites collection
-          setCollections(prev => 
-            prev.map(collection => 
-              collection.id === favoritesCollection.id
-                ? { 
-                    ...collection, 
-                    promptIds: collection.promptIds.filter(promptId => promptId !== id) 
-                  }
-                : collection
-            )
-          );
-        }
-      }
-      
+
+    try {
+      await ApiService.toggleFavorite(id); // API call
+      // No need to update state again if API call succeeds
       toast.success(newFavoriteStatus ? "Added to favorites" : "Removed from favorites");
+
+      // Note: Managing a separate "Favorites" collection might require additional logic
+      // depending on how the backend handles favorites vs collections.
+      // The current spec only has a toggle endpoint, not add/remove from a specific collection.
+
     } catch (error) {
       console.error("Error toggling favorite:", error);
-      toast.error("Failed to update favorite status");
+      toast.error(error instanceof Error ? error.message : "Failed to update favorite status");
+      // Rollback optimistic update on error
+       setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(p =>
+          p.id === id ? { ...p, isFavorite: !newFavoriteStatus } : p // Revert back
+        )
+      );
     }
   };
-  
+
   // Toggle a tag in the selected tags filter
   const toggleSelectedTag = (id: string) => {
-    setSelectedTags(prev => 
+    setSelectedTags(prev =>
       prev.includes(id)
         ? prev.filter(tagId => tagId !== id)
         : [...prev, id]
     );
   };
-  
+
   // Add prompt to collection
   const addPromptToCollection = async (promptId: string, collectionId: string) => {
     if (!user) {
       toast.error("You must be signed in to perform this action");
       return;
     }
-    
+
+    const originalPrompt = prompts.find(p => p.id === promptId);
+    const originalCollectionId = originalPrompt?.collectionId;
+
+    // Optimistic UI Update
+    setPrompts(prev =>
+      (Array.isArray(prev) ? prev : []).map(prompt =>
+        prompt.id === promptId ? { ...prompt, collectionId: collectionId } : prompt
+      )
+    );
+    setCollections(prev =>
+      (Array.isArray(prev) ? prev : []).map(collection => {
+        // Remove from old collection if it had one
+        if (collection.id === originalCollectionId && collection.promptIds?.includes(promptId)) {
+           return { ...collection, promptIds: collection.promptIds.filter(pid => pid !== promptId) };
+        }
+        // Add to new collection
+        if (collection.id === collectionId && !collection.promptIds?.includes(promptId)) {
+          return { ...collection, promptIds: [...(collection.promptIds || []), promptId] };
+        }
+        return collection;
+      })
+    );
+
+
     try {
-      // await supabaseService.addPromptToCollection(promptId, collectionId);
-      
-      // Update the prompt in local state
-      setPrompts(prev => 
-        prev.map(prompt => 
-          prompt.id === promptId
-            ? { ...prompt, collectionId }
-            : prompt
+      await ApiService.addPromptToCollection(collectionId, promptId);
+      toast.success("Prompt added to collection");
+    } catch (error) {
+      console.error("Error adding prompt to collection:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to add prompt to collection");
+      // Rollback optimistic update
+       setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(prompt =>
+          prompt.id === promptId ? { ...prompt, collectionId: originalCollectionId } : prompt // Revert collectionId
         )
       );
-      
-      // Update the collection
-      setCollections(prev => 
-        prev.map(collection => {
-          if (collection.id === collectionId && !collection.promptIds.includes(promptId)) {
-            return { ...collection, promptIds: [...collection.promptIds, promptId] };
+       setCollections(prev =>
+        (Array.isArray(prev) ? prev : []).map(collection => {
+          // Add back to old collection if it had one
+          if (collection.id === originalCollectionId && !collection.promptIds?.includes(promptId)) {
+             return { ...collection, promptIds: [...(collection.promptIds || []), promptId] };
+          }
+          // Remove from new collection
+          if (collection.id === collectionId && collection.promptIds?.includes(promptId)) {
+            return { ...collection, promptIds: collection.promptIds.filter(pid => pid !== promptId) };
           }
           return collection;
         })
       );
-      
-      toast.success("Prompt added to collection");
-    } catch (error) {
-      console.error("Error adding prompt to collection:", error);
-      toast.error("Failed to add prompt to collection");
     }
   };
-  
+
   // Remove prompt from collection
   const removePromptFromCollection = async (promptId: string, collectionId: string) => {
-    if (!user) {
+     if (!user) {
       toast.error("You must be signed in to perform this action");
       return;
     }
-    
+
+    // Optimistic UI Update
+     setPrompts(prev =>
+      (Array.isArray(prev) ? prev : []).map(prompt =>
+        prompt.id === promptId && prompt.collectionId === collectionId
+          ? { ...prompt, collectionId: undefined } // Set collectionId to undefined
+          : prompt
+      )
+    );
+     setCollections(prev =>
+      (Array.isArray(prev) ? prev : []).map(collection =>
+        collection.id === collectionId
+          ? { ...collection, promptIds: (collection.promptIds || []).filter(id => id !== promptId) }
+          : collection
+      )
+    );
+
     try {
-      // await supabaseService.removePromptFromCollection(promptId);
-      
-      // Update the prompt in local state
-      setPrompts(prev => 
-        prev.map(prompt => 
-          prompt.id === promptId && prompt.collectionId === collectionId
-            ? { ...prompt, collectionId: undefined }
-            : prompt
-        )
-      );
-      
-      // Update the collection
-      setCollections(prev => 
-        prev.map(collection => 
-          collection.id === collectionId
-            ? { ...collection, promptIds: collection.promptIds.filter(id => id !== promptId) }
-            : collection
-        )
-      );
-      
+      // API spec uses DELETE /api/collections/{collectionId}/prompts/{promptId}
+      await ApiService.removePromptFromCollection(collectionId, promptId);
       toast.success("Prompt removed from collection");
     } catch (error) {
       console.error("Error removing prompt from collection:", error);
-      toast.error("Failed to remove prompt from collection");
+      toast.error(error instanceof Error ? error.message : "Failed to remove prompt from collection");
+      // Rollback optimistic update
+       setPrompts(prev =>
+        (Array.isArray(prev) ? prev : []).map(prompt =>
+          prompt.id === promptId && prompt.collectionId === undefined // Find the one we just changed
+            ? { ...prompt, collectionId: collectionId } // Revert collectionId
+            : prompt
+        )
+      );
+       setCollections(prev =>
+        (Array.isArray(prev) ? prev : []).map(collection =>
+          collection.id === collectionId && !collection.promptIds?.includes(promptId) // If it's missing from the collection we removed from
+            ? { ...collection, promptIds: [...(collection.promptIds || []), promptId] } // Add it back
+            : collection
+        )
+      );
     }
   };
-  
+
   // Clear all filters
   const clearFilters = () => {
     setSelectedCollection(null);
     setSelectedTags([]);
     setSearchQuery("");
+    // Optionally reset sort? setSortOption("newest");
   };
 
   const value = {
@@ -556,7 +569,8 @@ export const PromptProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     removePromptFromCollection,
     clearFilters,
     filteredPrompts,
-    isLoading
+    isLoading,
+    fetchData // Expose refetch function
   };
 
   return (

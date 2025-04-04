@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useCallback } from "react";
 import { usePrompts } from "@/context/PromptContext";
 import { Tag } from "@/types";
