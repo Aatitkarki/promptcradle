@@ -34,12 +34,15 @@ const Index: React.FC = () => {
       exit={{ opacity: 0 }}
       className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6"
     >
-      <div className="hidden md:block">
+      <div className="hidden md:block p-4"> {/* Added p-4 */}
         <CollectionsList />
         
         <div className="mt-8 space-y-4">
-          <h3 className="font-medium">Filter by Tags</h3>
-          <Separator />
+          <div className="flex justify-between items-center"> {/* Added flex container */}
+            <h3 className="font-medium">Filter by Tags</h3>
+            {/* No element on the right, but flex maintains alignment */}
+          </div>
+          <Separator /> {/* Separator remains below the title */}
           
           <div className="flex flex-wrap gap-1.5">
             {tags.map((tag) => (

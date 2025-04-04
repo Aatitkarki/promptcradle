@@ -266,14 +266,14 @@ const CollectionsList: React.FC = () => {
 
   const renderCollectionList = (isDrawerContext = false) => (
     <div className="flex flex-col gap-1 py-2">
-      {collections.length === 0 && <p className="text-sm text-muted-foreground px-2">No collections yet.</p>}
+      {collections.length === 0 && <p className="text-sm text-muted-foreground">No collections yet.</p>} {/* Removed px-2 */}
       {collections.map(collection => renderCollectionItem(collection, isDrawerContext))}
     </div>
   );
 
   // --- Desktop View ---
   const DesktopView = () => (
-    <div className="p-4 flex flex-col">
+    <div className="flex flex-col"> {/* Removed p-4 */}
       <div className="flex justify-between items-center mb-3">
         <h3 className="text-lg font-semibold">Collections</h3>
         {user && (

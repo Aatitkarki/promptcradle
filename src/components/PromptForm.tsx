@@ -127,7 +127,7 @@ const PromptForm: React.FC<PromptFormProps> = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
-              {collections.map((collection) => (
+              {Array.isArray(collections) && collections.map((collection) => (
                 <SelectItem key={collection.id} value={collection.id}>
                   {collection.name}
                 </SelectItem>

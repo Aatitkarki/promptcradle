@@ -22,6 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Check for authenticated user on component mount
   useEffect(() => {
     const checkUser = async () => {
+<<<<<<< HEAD
       setIsLoading(true); // Start loading
       try {
         // Attempt to get user info based on stored token
@@ -35,6 +36,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } finally {
         setIsLoading(false); // Stop loading regardless of outcome
       }
+=======
+      // Simulate a logged-in user for testing
+      const mockUser: User = { id: 'test-user', email: 'test@example.com', username: 'Test User' }; // Added username to match User type potentially
+      setUser(mockUser);
+      setIsLoading(false);
+>>>>>>> 4e2f01c (Add feature check and application test reports; update collections and prompt forms for improved functionality)
     };
 
     checkUser();
