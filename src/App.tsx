@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import Index from "./pages/Index";
 import PromptDetail from "./pages/PromptDetail";
 import NotFound from "./pages/NotFound";
-import UserMenu from "./components/UserMenu";
 
 const queryClient = new QueryClient();
 
